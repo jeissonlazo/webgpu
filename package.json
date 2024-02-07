@@ -1,0 +1,20 @@
+{
+  "name": "gpu-app",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "typescript": "^5.2.2",
+    "vite": "^5.0.8",
+    "vite-plugin-glsl": "^1.2.1"
+  },
+  "dependencies": {
+    "@webgpu/glslang": "^0.0.15",
+    "@webgpu/types": "^0.1.40"
+  }
+}
