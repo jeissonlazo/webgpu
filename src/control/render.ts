@@ -1,7 +1,9 @@
 import triangleVertWGSL from '../shader/triangle.vert.wgsl';
 import { CanvasClass } from "../render/canvas_controller";
 import  {Shaders} from "../shader/shaders";
+import Square from '../shader/square.wgsl';
 import lines from '../shader/lines.wgsl';
+import { HelperClass } from "../helper";
 export class RenderPassClass {
 
   canvas!:HTMLCanvasElement;
@@ -12,10 +14,11 @@ export class RenderPassClass {
   swapChain!: GPUCanvasConfiguration;
   color!: string;
   pipeline!: GPURenderPipeline;
+  helper!: HelperClass;
+
   constructor() {
     this.canvas = new CanvasClass('canvas').get_canvas();
-
-    this.selectControl();
+    this.helper = new HelperClass();
   }
   
   async Init(primitiveType: string = 'triangle-list') {
@@ -81,11 +84,82 @@ export class RenderPassClass {
     this.device.queue.submit([commandEncoder.finish()]);
   }
 
-  selectControl (){
-    document.getElementById('id-primitive')?.addEventListener('change', (event: Event ) => {
-      let value = (<HTMLSelectElement>event.target).value;
-      this.Init(value);
-    })
+  async CreateSquare(){
+    const  gpu = await this.helper.InitGPU();
+    const device = gpu.device;
+    
+    const vertexData = new Float32Array([
+      //position    //color
+     -0.5, -0.5,    1, 0, 0,  // vertex a
+      0.5, -0.5,    0, 1, 0,  // vertex b
+     -0.5,  0.5,    1, 1, 0,  // vertex d
+     -0.5,  0.5,    1, 1, 0,  // vertex d
+      0.5, -0.5,    0, 1, 0,  // vertex b
+      0.5,  0.5,    0, 0, 1   // vertex c
+    ]);
+    const vertexBuffer = this.helper.CreateGPUBuffer(device, vertexData);
+
+    const shader = Square;
+    const pipeline = device.createRenderPipeline({
+      vertex: {
+        module: device.createShaderModule({
+          code: shader,
+        }),
+        entryPoint: "vs_main",
+        buffers: [
+          {
+            arrayStride: 4*(2+3),
+            attributes: [
+              {
+                shaderLocation: 0,
+                offset: 0,
+                format: "float32x2",
+              },
+              {
+                shaderLocation: 1,
+                offset: 4*2,
+                format: "float32x3",
+              }
+            ]
+          }
+        ],
+      },
+      fragment: {
+        module: device.createShaderModule({
+          code: shader,
+        }),
+        entryPoint: "fs_main",
+        targets: [
+          {
+            format: gpu.format,
+          },
+        ],
+      },
+      primitive: {
+        topology: "triangle-list",
+      },
+      layout: 'auto'
+    });
+
+    const commandEncoder = device.createCommandEncoder();
+    const textureView = gpu.context.getCurrentTexture().createView();
+    const renderPass = commandEncoder.beginRenderPass({
+      colorAttachments: [
+        {
+          view: textureView,
+          clearValue: { r: 0.0, g: 0.5, b: 1.0, a: 1.0 },
+          storeOp: "store",
+          loadOp: "clear",
+        },
+      ],
+    });
+
+    renderPass.setPipeline(pipeline);
+    renderPass.setVertexBuffer(0, vertexBuffer);
+    renderPass.draw(6);
+    renderPass.end();
+    device.queue.submit([commandEncoder.finish()]);
   }
+
 }
 
